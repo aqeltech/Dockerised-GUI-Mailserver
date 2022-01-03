@@ -6,7 +6,11 @@ Dockerised GUI Mail Server (Forked from [Dockerised Mail Server](https://github.
 - Ready for Production
 
 # To-do
-1. Refactor SQL Mapping with conditional rules
-2. Document the entire process from a to z
-3. Integrate imapsync/Fetchmail using gui
-4. Manage transport using  sql from the gui
+- [ ] Refactor SQL Mapping with conditional rules
+- [ ] Document the entire process from a to z
+- [ ] Integrate imapsync/Fetchmail using gui
+- [ ] Manage transport using  sql from the gui
+
+# Useful links
+- [Mailserver Environment Variables Docs](https://docker-mailserver.github.io/docker-mailserver/edge/config/environment)
+- [PostfixAdmin Docs](https://github.com/postfixadmin/postfixadmin/blob/master/INSTALL.TXT)
