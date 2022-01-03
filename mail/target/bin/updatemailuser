@@ -1,0 +1,35 @@
+#! /bin/bash
+
+# ? This is done to ignore the message "Make sure not to read and write
+# ? the same file in the same pipeline", which is a result of ${DATABASE}
+# ? being used below. (This disables the message file-wide.)
+# shellcheck disable=SC2094
+
+# shellcheck source=../scripts/helper-functions.sh
+. /usr/local/bin/helper-functions.sh
+
+DATABASE=${DATABASE:-/tmp/docker-mailserver/postfix-accounts.cf}
+
+USER="${1}"
+shift
+PASSWD="${*}"
+
+function usage  {	echo "Usage: updatemailuser <user@domain.tld> [password]" ; }
+
+[[ -z ${USER} ]] && { usage ; errex "no username specified" ; }
+
+if [[ -z ${PASSWD} ]]
+then
+  read -r -s -p "Enter Password: " PASSWD
+  echo
+  [[ -z ${PASSWD} ]] && errex "Password must not be empty"
+fi
+
+HASH="$(doveadm pw -s SHA512-CRYPT -u "${USER}" -p "${PASSWD}")"
+
+# Protect config file with lock to avoid race conditions
+(
+  flock -e 200
+  grep -qi "^$(escape "${USER}")|" "${DATABASE}" 2>/dev/null || errex "User \"${USER}\" does not exist"
+  sed -i "s ^""${USER}""|.* ""${USER}""|""${HASH}"" " "${DATABASE}"
+) 200< "${DATABASE}"

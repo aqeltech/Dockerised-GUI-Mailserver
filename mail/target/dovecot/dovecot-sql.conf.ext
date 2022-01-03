@@ -1,0 +1,6 @@
+driver 				= {{SQL_DRIVER}}
+connect 			= "host={{SQL_HOSTS}} dbname={{SQL_DBNAME}} user={{SQL_USER}} password={{SQL_PASSWORD}}"
+default_pass_scheme = {{SQL_PASS_SCHEME}}
+password_query 		= SELECT username AS user,password FROM mailbox WHERE username = '%u' AND active = TRUE
+user_query 			= SELECT CONCAT('/var/mail/', maildir) AS home, 5000 AS uid, 5000 AS gid, CONCAT('*:bytes=', quota) AS quota_rule FROM mailbox WHERE username = '%u' AND active = TRUE
+iterate_query 		= SELECT username AS user FROM mailbox

@@ -1,0 +1,169 @@
+version: "3.8"
+
+services:
+  mail:
+    build: ./mail
+    hostname: ${OVERRIDE_HOSTNAME}
+    domainname: ${DOMAINNAME}
+    container_name: Mailbox
+    depends_on:
+      - postfixdb
+    volumes:
+      - ./mail/data/mail:/var/mail
+      - ./mail/data/conf:/var/mail-state
+      - ./mail/data/logs:/var/log/mail
+      - ./mail/config/:/tmp/docker-mailserver/
+      - /etc/localtime:/etc/localtime:ro
+      # ? if SELinux is enabled, uncomment the line below and comment the line above
+      # - ./config/:/tmp/docker-mailserver/${SELINUX_LABEL}
+    networks:
+      - mailserver
+    ports:
+      - "25:25" # SMTP  (explicit TLS => STARTTLS)
+      - "143:143" # IMAP4 (explicit TLS => STARTTLS)
+      - "465:465" # ESMTP (implicit TLS)
+      - "587:587" # ESMTP (explicit TLS => STARTTLS)
+      - "993:993" # IMAP4 (implicit TLS)
+    environment:
+      # General Configurations
+      SMTP_ONLY: 0
+      ONE_DIR: 1
+      DMS_DEBUG: 1
+      # Security Configurations
+      TLS_LEVEL: modern
+      SSL_TYPE: letsencrypt
+      SPOOF_PROTECTION: 1
+      ENABLE_SPAMASSASSIN: 1
+      ENABLE_CLAMAV: 0
+      ENABLE_FAIL2BAN: 0
+      ENABLE_POSTGREY: 0
+      # Networking
+      PERMIT_DOCKER: connected-networks
+      POSTFIX_INET_PROTOCOLS: ipv4
+      # External SMTP Configurations
+      DEFAULT_RELAY_HOST: ${DEFAULT_RELAY_HOST}
+      RELAY_HOST: ${RELAY_HOST}
+      RELAY_PORT: ${RELAY_PORT}
+      RELAY_USER: ${RELAY_USER}
+      RELAY_PASSWORD: ${RELAY_PASSWORD}
+      # SQL Configurations
+      ENABLE_SQL: 1
+      SQL_DRIVER: mysql
+      SQL_HOSTS: postfixdb
+      SQL_USER: ${MYSQL_USER}
+      SQL_DBNAME: ${MYSQL_DATABASE}
+      SQL_PASSWORD: ${MYSQL_PASSWORD}
+      DEFAULT_PASS_SCHEME: MD5-CRYPT
+      # Enable/Disable Components
+      ENABLE_POP3: null
+      ENABLE_SRS: 0
+    restart: always
+    stop_grace_period: 1m
+    cap_add: [ "NET_ADMIN", "SYS_PTRACE" ]
+  postfixdb:
+    container_name: PostfixDB
+    image: mysql:5.7
+    volumes:
+      # - ./mysql:/docker-entrypoint-initdb.d
+      - sqldata:/var/lib/mysql
+    networks:
+      - mailserver
+    expose:
+      - "3306"
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    restart: always
+  postfixadmin:
+    image: postfixadmin
+    container_name: PostfixAdmin
+    depends_on:
+      - postfixdb
+      - mail
+    networks:
+      - mailserver
+    ports:
+      - 8080:80
+    environment:
+      POSTFIXADMIN_DB_TYPE: mysqli
+      POSTFIXADMIN_DB_HOST: postfixdb
+      POSTFIXADMIN_DB_USER: ${MYSQL_USER}
+      POSTFIXADMIN_DB_NAME: ${MYSQL_DATABASE}
+      POSTFIXADMIN_DB_PASSWORD: ${MYSQL_PASSWORD}
+      POSTFIXADMIN_SETUP_PASSWORD: ${POSTFIXADMIN_SETUP_PASSWORD}
+      POSTFIXADMIN_SMTP_SERVER: mail
+      POSTFIXADMIN_SMTP_PORT: 25
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.postfixadmin.rule=Host(`mail.${DOMAINNAME}`)"
+      - "traefik.http.routers.postfixadmin.entrypoints=websecure"
+      - "traefik.http.routers.postfixadmin.tls.certresolver=myresolver"
+  autodiscover:
+    image: monogramm/autodiscover-email-settings:latest
+    container_name: AutoDiscover
+    networks:
+      - mailserver
+    environment:
+      COMPANY_NAME: ${COMPANY_NAME}
+      SUPPORT_URL: https://autodiscover.${DOMAINNAME}
+      DOMAIN: ${DOMAINNAME}
+      # IMAP configuration (host mandatory to enable)
+      IMAP_HOST: mail.${DOMAINNAME}
+      IMAP_PORT: 993
+      IMAP_SOCKET: SSL
+      # POP configuration (host mandatory to enable)
+      POP_HOST: mail.${DOMAINNAME}
+      POP_PORT: 995
+      POP_SOCKET: SSL
+      # SMTP configuration (host mandatory to enable)
+      SMTP_HOST: mail.${DOMAINNAME}
+      SMTP_PORT: 587
+      SMTP_SOCKET: STARTTLS
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.autodiscover.rule=Host(`autoconfig.${DOMAINNAME}`\
+        ,`autodiscover.${DOMAINNAME}`)"
+      - "traefik.http.routers.autodiscover.entrypoints=websecure"
+      - "traefik.http.routers.autodiscover.tls.certresolver=myresolver"
+  traefik:
+    image: traefik:latest
+    container_name: Traefik
+    restart: unless-stopped
+    command:
+      #- "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entryPoints.web.address=:80"
+      - "--entryPoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      # - "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - "--certificatesResolvers.myresolver.acme.email=postmaster@${DOMAINNAME}"
+      - "--certificatesResolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    networks:
+      - mailserver
+    ports:
+      - "80:80"
+      - "443:443"
+    labels:
+      - "traefik.enable=true"
+      # Middleware Redirect
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      # Global Redirect to HTTPS
+      - "traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.redirs.entrypoints=web"
+      - "traefik.http.routers.redirs.middlewares=redirect-to-https"
+    volumes:
+      - "./mail/data/letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+networks:
+  mailserver:
+    name: mailserver
+    driver: bridge
+volumes:
+  sqldata:
+    name: SQLData
+    external: false

@@ -1,0 +1,5 @@
+hosts = {{SQL_HOSTS}}
+dbname = {{SQL_DBNAME}}
+user = {{SQL_USER}}
+password = {{SQL_PASSWORD}}
+query = SELECT goto FROM alias,alias_domain WHERE alias_domain.alias_domain = '%d' and alias.address = CONCAT('%u', '@', alias_domain.target_domain) AND alias.active = TRUE AND alias_domain.active = TRUE

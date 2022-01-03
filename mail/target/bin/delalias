@@ -1,0 +1,23 @@
+#! /bin/bash
+
+# shellcheck source=../scripts/helper-functions.sh
+. /usr/local/bin/helper-functions.sh
+
+DATABASE=${DATABASE:-/tmp/docker-mailserver/postfix-virtual.cf}
+
+EMAIL="${1}"
+RECIPIENT="${2}"
+
+function __usage { echo "Usage: delalias <alias@domain> <recipient@other>" ; }
+
+[[ ${1:-} == 'help' ]] && { __usage ; exit 0 ; }
+
+[[ -z ${EMAIL} ]] && { __usage ; errex "Error: No alias specified" ; }
+[[ -z ${RECIPIENT} ]] && { __usage ; errex "Error: No recipient specified" ; }
+[[ -s ${DATABASE} ]] || exit 0
+
+sed -i \
+  -e "/^${EMAIL} *${RECIPIENT}$/d" \
+  -e "/^${EMAIL}/s/,${RECIPIENT}//g" \
+  -e "/^${EMAIL}/s/${RECIPIENT},//g" \
+  "${DATABASE}"
