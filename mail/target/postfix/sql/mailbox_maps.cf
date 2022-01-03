@@ -1,0 +1,6 @@
+hosts = {{SQL_HOSTS}}
+dbname = {{SQL_DBNAME}}
+user = {{SQL_USER}}
+password = {{SQL_PASSWORD}}
+query = SELECT maildir FROM mailbox WHERE username='%s' AND active = TRUE
+#expansion_limit = 100

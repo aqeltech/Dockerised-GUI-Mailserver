@@ -1,0 +1,50 @@
+#################################################
+###  General  ###################################
+#################################################
+
+.DS_Store
+.env
+config/opendkim/
+
+#################################################
+###  IDEs  ######################################
+#################################################
+
+.idea
+.vscode
+
+
+#################################################
+###  Linting Tools  #############################
+#################################################
+
+tools/
+
+#################################################
+###  Tests  #####################################
+#################################################
+
+test/config/empty/
+test/config/postfix-accounts.cf
+test/config/letsencrypt/mail.my-domain.com/combined.pem
+test/config/dovecot-lmtp/userdb
+test/config/key*
+test/config/opendkim/keys/domain.tld/
+test/config/opendkim/keys/example.com/
+test/config/opendkim/keys/localdomain2.com/
+test/config/postfix-aliases.cf
+test/config/postfix-receive-access.cf
+test/config/postfix-receive-access.cfe
+test/config/postfix-send-access.cf
+test/config/postfix-send-access.cfe
+test/config/relay-hosts/chksum
+test/config/relay-hosts/postfix-aliases.cf
+test/config/without-virtual/
+test/config/with-domain/
+test/onedir
+test/duplicate_configs
+
+config.bak
+testconfig.bak
+
+mail/data/
